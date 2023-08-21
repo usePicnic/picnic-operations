@@ -13,6 +13,8 @@ from discord.ext import tasks, commands
 from web3 import Web3, AsyncWeb3, AsyncHTTPProvider
 from get_portfolios_data import get_portfolio_data
 
+# from quoter import LiquidityCalculator, ParaswapConnector
+
 # Load environment variables
 load_dotenv()
 
@@ -21,7 +23,7 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 TESULTS_TOKEN = os.getenv("TESULTS_TOKEN")
 
 # Channel ID for the Discord bot
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+OPS_CHANNEL_ID = int(os.getenv("OPS_CHANNEL_ID"))
 
 # Contract addresses for DeFi Basket and gas station
 CONTRACT_ADDRESS = "0xee13C86EE4eb1EC3a05E2cc3AB70576F31666b3b"  # DeFi Basket
@@ -46,7 +48,7 @@ EVENT_MAPPING = {
 locale.setlocale(locale.LC_ALL, "en_US")
 
 # Load contract ABI from local file
-with open("contract_abi.json") as f:
+with open("lib/defi_basket_abi.json") as f:
     CONTRACT_ABI = json.load(f)
 
 # Set up web3 and the contract
@@ -104,7 +106,7 @@ A new **{event.event_name}** transaction has been detected.
 :small_blue_diamond: **Link**: [Verifique a transação aqui] (https://polygonscan.com/tx/0x{event['transactionHash'].hex()})
 :small_orange_diamond: **Event header**: {event['event']}({', '.join([f"{k}: {v}" for k, v in event['args'].items()])})
 """
-    channel = bot.get_channel(CHANNEL_ID)
+    channel = bot.get_channel(OPS_CHANNEL_ID)
     await channel.send(message)
 
 
@@ -193,7 +195,7 @@ def split_message(content, limit=2000):
     messages = []
     chunk = ""
     for line in lines:
-        if len(chunk) + len(line) + 1 > limit:  # adding 1 for newline character
+        if len(chunk) + len(line) + 2 > limit:  # adding 2 for newline character
             messages.append(chunk)
             chunk = ""
         chunk += line + "\n"
@@ -364,17 +366,22 @@ async def daily_report():
     now = datetime.now(pytz.timezone("America/Sao_Paulo"))
 
     if now.hour in [6, 18] and now.minute == 00:  # 6:00am and 6:00pm BRT
+        # if now.hour in [6, 18] and now.minute == 21:  # 6:00am and 6:00pm BRT
         # Define report title based on the time
         report_title = (
             "Daily Morning Report" if now.hour == 6 else "Daily Afternoon Report"
         )
         report_str, report_extended_str = await report_body(report_title, type="full")
-        channel = bot.get_channel(CHANNEL_ID)
+        channel = bot.get_channel(OPS_CHANNEL_ID)
         chunks = split_message(report_str)
         for chunk in chunks:
+            # print("test", len(chunk))
             await channel.send(chunk)
         chunks_ext = split_message(report_extended_str)
+        # x = 1
         for chunk in chunks_ext:
+            # print(x, len(chunk))
+            # x += 1
             await channel.send(chunk)
 
 
@@ -384,7 +391,7 @@ async def check_balance_and_notify():
     Task loop to check the balance of the gas station and notify if it's too low.
     """
 
-    channel = bot.get_channel(CHANNEL_ID)
+    channel = bot.get_channel(OPS_CHANNEL_ID)
     balance = await get_balance()
     low_balance = balance < 20
     if low_balance:
