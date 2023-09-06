@@ -121,6 +121,7 @@ async def log_loop(event_filter, poll_interval):
 
     while True:
         try:
+            print("Checking for new events...")
             for event in await event_filter.get_new_entries():
                 await handle_event(event)
         except Exception as e:
@@ -225,7 +226,7 @@ async def report_body(report_title, type="std"):
     ) = await get_test_results()  # Call the new function to get test results
 
     # Make the API request
-    response = requests.get("https://usepicnic.com/api/get-easy-metrics")
+    response = requests.get("https://dev.usepicnic.com/api/get-easy-metrics")
     data = response.json()
 
     # Retrieve the desired metrics
@@ -301,10 +302,13 @@ async def on_ready():
     check_balance_and_notify.start()
     tasks = []
 
+    print("Contract events: ", contract.events)
     for event in contract.events:
         event_filter = await contract.events[event.event_name].create_filter(
-            fromBlock="latest"
+            # fromBlock="latest"
+            fromBlock=46827233
         )
+        # print(f"Created filter for {event.event_name}")
         tasks.append(log_loop(event_filter, 2))
     try:
         await asyncio.gather(*tasks)  # Change this line
