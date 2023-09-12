@@ -71,7 +71,6 @@
   },
   {
     "anonymous": false,
-    "inputs": [],
     "name": "DEFIBASKET_DEPOSIT",
     "type": "event"
   },
