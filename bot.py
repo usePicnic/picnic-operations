@@ -226,8 +226,15 @@ async def report_body(report_title, type="std"):
     ) = await get_test_results()  # Call the new function to get test results
 
     # Make the API request
-    response = requests.get("https://dev.usepicnic.com/api/get-easy-metrics")
-    data = response.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            "https://dev.usepicnic.com/api/get-easy-metrics"
+        ) as response:
+            if response.status != 200:
+                raise Exception(
+                    f"API responded with {response.status}: {await response.text()}"
+                )
+            data = await response.json()
 
     # Retrieve the desired metrics
     easy_users = data["metrics"]["easyUsers"]
@@ -302,14 +309,14 @@ async def on_ready():
     check_balance_and_notify.start()
     tasks = []
 
-    print("Contract events: ", contract.events)
-    for event in contract.events:
-        event_filter = await contract.events[event.event_name].create_filter(
-            # fromBlock="latest"
-            fromBlock=46827233
-        )
-        # print(f"Created filter for {event.event_name}")
-        tasks.append(log_loop(event_filter, 2))
+    # print("Contract events: ", contract.events)
+    # for event in contract.events:
+    #     event_filter = await contract.events[event.event_name].create_filter(
+    #         # fromBlock="latest"
+    #         fromBlock=46827233
+    #     )
+    #     # print(f"Created filter for {event.event_name}")
+    #     tasks.append(log_loop(event_filter, 2))
     try:
         await asyncio.gather(*tasks)  # Change this line
     except Exception as e:
