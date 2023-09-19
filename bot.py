@@ -7,6 +7,7 @@ import locale
 import pytz
 import psutil
 import aiohttp
+import aiohttp_retry
 from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import tasks, commands
@@ -226,9 +227,14 @@ async def report_body(report_title, type="std"):
     ) = await get_test_results()  # Call the new function to get test results
 
     # Make the API request
-    async with aiohttp.ClientSession() as session:
+    retry_strategy = aiohttp_retry.ExponentialRetry(
+        attempts=3  # Number of retry attempts
+    )
+    # Make the API request
+    async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
         async with session.get(
-            "https://dev.usepicnic.com/api/get-easy-metrics"
+            "https://dev.usepicnic.com/api/get-easy-metrics",
+            timeout=300,  # 5 minutes in seconds
         ) as response:
             if response.status != 200:
                 raise Exception(
