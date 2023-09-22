@@ -68,7 +68,12 @@ discordClient.login(DISCORD_BOT_TOKEN);
 
 function sendMessageToDiscordChannel(event, log, relevantData) {
   const channel = discordClient.channels.cache.get(CHANNEL_ID);
-  if (channel) {
+  if (!channel) {
+    console.error("Channel not found!");
+    return;
+  }
+
+  try {
     const embed = {
       color: 0x32a852,
       title: `Event: ${event.name}`,
@@ -92,8 +97,12 @@ function sendMessageToDiscordChannel(event, log, relevantData) {
 
     // Send the embed object as part of the message parameters.
     channel.send({ embeds: [embed] });
-  } else {
-    console.error("Channel not found!");
+  } catch (error) {
+    // If there's an error building the embed, send a plain text message with the error details.
+    channel.send(
+      `Failed to send embed message for event: ${event.name}. Error: ${error.message}`
+    );
+    console.error("Error building embed:", error);
   }
 }
 
