@@ -70,19 +70,23 @@ function sendMessageToDiscordChannel(event, log, relevantData) {
   const channel = discordClient.channels.cache.get(CHANNEL_ID);
   if (channel) {
     const embed = {
-      color: 0x0099ff,
+      color: 0x32a852,
       title: `Event: ${event.name}`,
       url: `https://polygonscan.com/tx/${log.transactionHash}`,
       description: "Details of the triggered event",
-      fields: [
-        {
-          name: "Relevant Data",
-          value: `\`\`\`${JSON.stringify(relevantData)}\`\`\``,
-        },
-      ],
+      fields: Object.keys(relevantData).map((key) => ({
+        name: key.charAt(0).toUpperCase() + key.slice(1), // Capitalize the key
+        value:
+          typeof relevantData[key] === "object"
+            ? JSON.stringify(relevantData[key], null, 2)
+            : relevantData[key].toString(),
+        inline: true,
+      })),
       timestamp: new Date(),
       footer: {
         text: "Picnic Bot",
+        icon_url:
+          "https://file.notion.so/f/f/97fec8e8-7050-42ce-9bb8-a2fe5900aca6/b03ca908-4da4-43be-9276-d765f5a37eb5/avatar-classic.png?id=b2f5c49e-f4cb-4d12-914c-5063770cbe61&table=block&spaceId=97fec8e8-7050-42ce-9bb8-a2fe5900aca6&expirationTimestamp=1695499200000&signature=C2OobfCzGjOgDaOQs4kjvIN5QPkpRFK6xP1FpoDKONM&downloadName=simbol-classic.png",
       },
     };
 
