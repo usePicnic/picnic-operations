@@ -2,7 +2,7 @@ require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const { ethers } = require("ethers");
 const fs = require("fs");
-const ERC20_ABI = require("../lib/erc20_abi.json");
+const ERC20_ABI = require("./lib/erc20_abi.json");
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 const CHANNEL_ID = process.env.OPS_CHANNEL_ID;
@@ -10,7 +10,7 @@ const ALCHEMY_SECOND_API_KEY = process.env.ALCHEMY_SECOND_API_KEY;
 
 const PROVIDER_URL = `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_SECOND_API_KEY}`;
 const DEFIBASKET_ADDRESS = "0xee13C86EE4eb1EC3a05E2cc3AB70576F31666b3b";
-const ABI_FILE_PATH = "../lib/defi_basket_abi.json";
+const ABI_FILE_PATH = "./lib/defi_basket_abi.json";
 const BLOCKNUMBER_FILE_PATH = "blocknumber.txt";
 
 const monitoredWallets = [
@@ -41,6 +41,12 @@ const tokensDataset = {
     symbol: "WETH",
     name: "Wrapped Ether",
     currency: "ETH",
+    decimals: 18,
+  },
+  "0x18ec0A6E18E5bc3784fDd3a3634b31245ab704F6": {
+    symbol: "EURe",
+    name: "Monerium EUR emoney",
+    currency: "EUR",
     decimals: 18,
   },
 };
