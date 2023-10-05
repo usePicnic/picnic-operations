@@ -3,20 +3,57 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const { ethers } = require("ethers");
 const fs = require("fs");
 const ERC20_ABI = require("./lib/erc20_abi.json");
+const { MongoClient } = require("mongodb");
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 const CHANNEL_ID = process.env.OPS_CHANNEL_ID;
 const ALCHEMY_SECOND_API_KEY = process.env.ALCHEMY_SECOND_API_KEY;
+const MONGO_URL = process.env.MONGO_URL;
 
 const PROVIDER_URL = `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_SECOND_API_KEY}`;
 const DEFIBASKET_ADDRESS = "0xee13C86EE4eb1EC3a05E2cc3AB70576F31666b3b";
 const ABI_FILE_PATH = "./lib/defi_basket_abi.json";
 const BLOCKNUMBER_FILE_PATH = "blocknumber.txt";
 
-const monitoredWallets = [
-  "0x5131Ddea9ed6d2faeD4E16CC79995497A99f688E",
-  // ... Add more wallet addresses as needed
-];
+const uri = MONGO_URL;
+const dbName = "defibasket-common";
+const collectionName = "users";
+
+async function fetchWalletAddresses() {
+  const client = new MongoClient(uri, { useUnifiedTopology: true });
+
+  try {
+    await client.connect();
+    const database = client.db(dbName);
+    const collection = database.collection(collectionName);
+
+    const addresses = await collection
+      .find()
+      .map((doc) => doc.addresses.map((addrObj) => addrObj.address))
+      .toArray();
+
+    // Flatten the array of arrays to get a single array of addresses
+    const flattenedAddresses = [].concat(...addresses);
+
+    return flattenedAddresses;
+
+    // // Export addresses to a .txt file
+    // fs.writeFileSync("addresses.txt", flattenedAddresses.join("\n"), "utf-8");
+    // console.log("Wallet addresses exported successfully to addresses.txt!");
+  } catch (error) {
+    console.error("Error fetching wallet addresses:", error);
+  } finally {
+    await client.close();
+  }
+}
+
+let monitoredWallets = [];
+
+async function initializeMonitoredWallets() {
+  monitoredWallets = await fetchWalletAddresses();
+}
+
+initializeMonitoredWallets();
 
 const tokensDataset = {
   "0xE6A537a407488807F0bbeb0038B79004f19DDDFb": {
@@ -135,7 +172,7 @@ async function processEvent(log) {
   let event;
   let contract;
 
-  if (log.topics[0] === ethers.utils.id("Transfer(address,address,uint256)")) {
+  if (log.topics[0] === ethers.id("Transfer(address,address,uint256)")) {
     contract = new ethers.Contract(log.address, ERC20_ABI, provider);
     event = contract.interface.parseLog(log);
   } else {
@@ -261,9 +298,9 @@ async function runBot() {
     const transferLogs = await provider.getLogs({
       address: Object.keys(tokensDataset), // Fetch logs for all tokens in the dataset
       topics: [
-        ethers.utils.id("Transfer(address,address,uint256)"), // ERC-20 Transfer event signature
+        ethers.id("Transfer(address,address,uint256)"), // ERC-20 Transfer event signature
         null, // Ignore the sender
-        monitoredWallets.map((wallet) => ethers.utils.hexZeroPad(wallet, 32)), // List of monitored wallets padded to 32 bytes
+        monitoredWallets.map((wallet) => ethers.zeroPadValue(wallet, 32)), // List of monitored wallets padded to 32 bytes
       ],
       fromBlock: startingBlocknumber,
       toBlock: endingBlocknumber,
