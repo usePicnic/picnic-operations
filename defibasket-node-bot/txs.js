@@ -2,6 +2,7 @@ require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const { ethers } = require("ethers");
 const fs = require("fs");
+const ERC20_ABI = require("../lib/erc20_abi.json");
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 const CHANNEL_ID = process.env.OPS_CHANNEL_ID;
@@ -11,6 +12,11 @@ const PROVIDER_URL = `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_SECOND_
 const DEFIBASKET_ADDRESS = "0xee13C86EE4eb1EC3a05E2cc3AB70576F31666b3b";
 const ABI_FILE_PATH = "../lib/defi_basket_abi.json";
 const BLOCKNUMBER_FILE_PATH = "blocknumber.txt";
+
+const monitoredWallets = [
+  "0x5131Ddea9ed6d2faeD4E16CC79995497A99f688E",
+  // ... Add more wallet addresses as needed
+];
 
 const tokensDataset = {
   "0xE6A537a407488807F0bbeb0038B79004f19DDDFb": {
@@ -117,8 +123,20 @@ function setLastProcessedBlockNumber(blockNumber) {
   fs.writeFileSync(BLOCKNUMBER_FILE_PATH, blockNumber.toString());
 }
 
-async function processEvent(log, contract) {
-  const event = contract.interface.parseLog(log);
+async function processEvent(log) {
+  // const event = contract.interface.parseLog(log);
+
+  let event;
+  let contract;
+
+  if (log.topics[0] === ethers.utils.id("Transfer(address,address,uint256)")) {
+    contract = new ethers.Contract(log.address, ERC20_ABI, provider);
+    event = contract.interface.parseLog(log);
+  } else {
+    contract = new ethers.Contract(DEFIBASKET_ADDRESS, ABI, provider);
+    event = contract.interface.parseLog(log);
+  }
+
   if (!event) {
     console.warn(
       `Unable to parse log with transaction hash: ${log.transactionHash}`
@@ -126,11 +144,12 @@ async function processEvent(log, contract) {
     return;
   }
 
+  let relevantData = {};
+  let tokenInfo;
+
   const tx = await provider.getTransaction(log.transactionHash);
   const decodedInput = contract.interface.parseTransaction({ data: tx.data });
 
-  let relevantData = {};
-  let tokenInfo;
   switch (event.name) {
     case "DEFIBASKET_CREATE":
       relevantData.from = tx.from;
@@ -188,6 +207,20 @@ async function processEvent(log, contract) {
         decodedInput.args.outputs.amounts[0]
       );
       break;
+    case "Transfer":
+      if (monitoredWallets.includes(event.args.to)) {
+        relevantData.from = event.args.from;
+        relevantData.to = event.args.to;
+        tokenInfo = tokensDataset[log.address];
+        if (tokenInfo) {
+          relevantData.token = tokenInfo.symbol;
+          relevantData.amount =
+            Number(event.args.value) / 10 ** tokenInfo.decimals;
+        } else {
+          console.warn(`Token address not found in dataset: ${log.address}`);
+        }
+      }
+      break;
 
     default:
       console.log(`Event ${event.name} not processed.`);
@@ -214,24 +247,31 @@ async function runBot() {
     // const endingBlocknumber = startingBlocknumber + 100;
     setLastProcessedBlockNumber(endingBlocknumber);
 
-    const logs = await provider.getLogs({
+    const defiBasketLogs = await provider.getLogs({
       address: DEFIBASKET_ADDRESS,
       fromBlock: startingBlocknumber,
       toBlock: endingBlocknumber,
     });
+    const transferLogs = await provider.getLogs({
+      address: Object.keys(tokensDataset), // Fetch logs for all tokens in the dataset
+      topics: [
+        ethers.utils.id("Transfer(address,address,uint256)"), // ERC-20 Transfer event signature
+        null, // Ignore the sender
+        monitoredWallets.map((wallet) => ethers.utils.hexZeroPad(wallet, 32)), // List of monitored wallets padded to 32 bytes
+      ],
+      fromBlock: startingBlocknumber,
+      toBlock: endingBlocknumber,
+    });
 
-    if (logs.length === 0) {
+    const allLogs = [...defiBasketLogs, ...transferLogs];
+
+    if (allLogs.length === 0) {
       console.log("No logs found");
       return;
     }
 
-    const defiBasketContract = new ethers.Contract(
-      DEFIBASKET_ADDRESS,
-      ABI,
-      provider
-    );
-    for (const log of logs) {
-      await processEvent(log, defiBasketContract);
+    for (const log of allLogs) {
+      await processEvent(log);
     }
   } catch (error) {
     console.error("Error in runBot:", error);
