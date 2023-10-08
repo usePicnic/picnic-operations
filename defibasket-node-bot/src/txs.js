@@ -144,6 +144,10 @@ async function processEvent(log) {
   if (log.address.toLowerCase() === DEFIBASKET_ADDRESS.toLowerCase()) {
     contract = new ethers.Contract(DEFIBASKET_ADDRESS, ABI, provider);
     event = contract.interface.parseLog(log);
+    // if event is a transfer, end the function execution.
+    if (event.name === "Transfer") {
+      return;
+    }
   } else {
     contract = new ethers.Contract(log.address, ERC20_ABI, provider);
     event = contract.interface.parseLog(log);
