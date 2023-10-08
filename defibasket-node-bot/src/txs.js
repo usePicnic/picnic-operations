@@ -293,6 +293,9 @@ async function runBot() {
 
     if (defiBasketLogs.length === 0 && transferLogs.length === 0) {
       console.log("No logs found");
+    } else {
+      console.log("Raw defiBasketLogs:", defiBasketLogs);
+      console.log("Raw transferLogs:", transferLogs);
     }
   } catch (error) {
     console.error("Error in runBot:", error);
