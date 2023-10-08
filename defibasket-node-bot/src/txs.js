@@ -141,11 +141,11 @@ async function processEvent(log) {
   let event;
   let contract;
 
-  if (log.topics[0] === ethers.id("Transfer(address,address,uint256)")) {
-    contract = new ethers.Contract(log.address, ERC20_ABI, provider);
+  if (log.address.toLowerCase() === DEFIBASKET_ADDRESS.toLowerCase()) {
+    contract = new ethers.Contract(DEFIBASKET_ADDRESS, ABI, provider);
     event = contract.interface.parseLog(log);
   } else {
-    contract = new ethers.Contract(DEFIBASKET_ADDRESS, ABI, provider);
+    contract = new ethers.Contract(log.address, ERC20_ABI, provider);
     event = contract.interface.parseLog(log);
   }
 
