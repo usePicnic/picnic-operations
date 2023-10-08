@@ -276,6 +276,12 @@ async function runBot() {
     });
 
     const processedTxHashes = new Set();
+    if (defiBasketLogs.length === 0 && transferLogs.length === 0) {
+      console.log("No logs found");
+    } else {
+      console.log("Raw defiBasketLogs:", defiBasketLogs);
+      console.log("Raw transferLogs:", transferLogs);
+    }
 
     // First, process the defiBasketLogs
     for (const log of defiBasketLogs) {
@@ -289,13 +295,6 @@ async function runBot() {
       if (!processedTxHashes.has(log.transactionHash)) {
         await processEvent(log);
       }
-    }
-
-    if (defiBasketLogs.length === 0 && transferLogs.length === 0) {
-      console.log("No logs found");
-    } else {
-      console.log("Raw defiBasketLogs:", defiBasketLogs);
-      console.log("Raw transferLogs:", transferLogs);
     }
   } catch (error) {
     console.error("Error in runBot:", error);
