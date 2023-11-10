@@ -29,20 +29,33 @@ async def get_portfolio_data():
             862,  # EasyPassiveEUR
             804,  # EasyPassiveMATIC
             807,  # EasyPassiveBRL
-            932,  # 	EasyCryptoMatic
-            940,  # 	EasyPassiveETH
-            941,  # 	EasyCryptoAave
-            942,  # 	EasyCryptoUni
-            943,  # 	EasyCryptoLido
-            982,  # 	EasyCryptoPAXG
+            932,  # EasyCryptoMatic
+            940,  # EasyPassiveETH
+            941,  # EasyCryptoAave
+            942,  # EasyCryptoUni
+            943,  # EasyCryptoLido
+            982,  # EasyCryptoPAXG
             998,  # EasyPassiveUSDDavos
             1220,  # EasyCryptoGRT
             1221,  # EasyCryptoLINK
             1323,  # Alt Power @cassio.defi
             1325,  # Classic Hodler @cassio.defi
             1326,  # Just Stable @cassio.defi
-            1327,
-        ],  # Feel the Burn @cassio.defi],
+            1327,  # Feel the Burn @cassio.defi
+            1884,  # Avax
+            1885,  # Shiba Inu
+            1886,  # Ocean Protocol
+            1887,  # ApeCoin
+            1881,  # LP MATIC-USDC
+            1882,  # LP MATIC-ETH
+            1883,  # LP ETH-USDC
+            1890,  # LP WBTC-USDC
+            2044,  # Render Token (RNDR)
+            2045,  # Decentraland (MANA)
+            2046,  # Curve DAO Token (CRV)
+            2047,  # Mask Network (MASK)
+            2048,  # The Sandbox (SAND)
+        ],
         "perPage": 999,
     }
 

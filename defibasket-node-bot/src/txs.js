@@ -1,10 +1,13 @@
 require("dotenv").config({ path: __dirname + "/../.env" });
 
-const { Client, GatewayIntentBits } = require("discord.js");
-const { ethers } = require("ethers");
 const fs = require("fs");
-const ERC20_ABI = require("./lib/erc20_abi.json");
+const path = require("node:path");
+const { ethers } = require("ethers");
+const { Client, GatewayIntentBits, Collection, Events } = require("discord.js");
+const { REST, Routes } = require("discord.js");
 const { MongoClient } = require("mongodb");
+
+const ERC20_ABI = require("./lib/erc20_abi.json");
 const { tokensDataset } = require("./config");
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
@@ -69,20 +72,92 @@ const discordClient = new Client({
   ],
 });
 
+const GUILD_ID = "854417722703216692";
+const CLIENT_ID = "1116073397907111946";
+
 discordClient.once("ready", () => {
   console.log("Discord bot is ready!");
 });
 
 discordClient.login(DISCORD_BOT_TOKEN);
 
-// function sendMessageToDiscordChannel(message) {
-//   const channel = discordClient.channels.cache.get(CHANNEL_ID);
-//   if (channel) {
-//     channel.send(message);
-//   } else {
-//     console.error("Channel not found!");
-//   }
-// }
+discordClient.commands = new Collection();
+
+const commandsPath = path.join(__dirname, "commands");
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter((file) => file.endsWith(".js"));
+
+for (const file of commandFiles) {
+  const filePath = path.join(commandsPath, file);
+  const command = require(filePath);
+  // Set a new item in the Collection with the key as the command name and the value as the exported module
+  if ("data" in command && "execute" in command) {
+    console.log("Setting command:", command.data.name);
+    discordClient.commands.set(command.data.name, command);
+  } else {
+    console.log(
+      `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
+    );
+  }
+}
+
+// Construct and prepare an instance of the REST module
+const rest = new REST().setToken(DISCORD_BOT_TOKEN);
+const commands = [];
+discordClient.commands.forEach((command) => {
+  commands.push(command.data.toJSON());
+});
+
+// and deploy your commands!
+(async () => {
+  try {
+    console.log(
+      `Started refreshing ${commands.length} application (/) commands.`
+    );
+
+    // The put method is used to fully refresh all commands in the guild with the current set
+    const data = await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+
+    console.log(
+      `Successfully reloaded ${data.length} application (/) commands.`
+    );
+  } catch (error) {
+    // And of course, make sure you catch and log any errors!
+    console.error(error);
+  }
+})();
+
+discordClient.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = interaction.client.commands.get(interaction.commandName);
+
+  if (!command) {
+    console.error(`No command matching ${interaction.commandName} was found.`);
+    return;
+  }
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({
+        content: "There was an error while executing this command!",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "There was an error while executing this command!",
+        ephemeral: true,
+      });
+    }
+  }
+});
 
 function sendMessageToDiscordChannel(event, log, relevantData) {
   const channel = discordClient.channels.cache.get(CHANNEL_ID);
@@ -289,8 +364,10 @@ async function runBot() {
 
     // First, process the defiBasketLogs
     for (const log of defiBasketLogs) {
-      await processEvent(log);
-      processedTxHashes.add(log.transactionHash);
+      if (!processedTxHashes.has(log.transactionHash)) {
+        await processEvent(log);
+        processedTxHashes.add(log.transactionHash);
+      }
     }
 
     // Then, process the transferLogs, skipping those with transaction hashes
@@ -298,6 +375,7 @@ async function runBot() {
     for (const log of transferLogs) {
       if (!processedTxHashes.has(log.transactionHash)) {
         await processEvent(log);
+        processedTxHashes.add(log.transactionHash);
       }
     }
   } catch (error) {

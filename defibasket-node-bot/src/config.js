@@ -11,8 +11,14 @@ const tokensDataset = {
     decimals: 18,
   },
   "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": {
+    symbol: "USDC.e",
+    name: "USD Coin (Bridged)",
+    currency: "USD",
+    decimals: 6,
+  },
+  "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359": {
     symbol: "USDC",
-    name: "USD Coin (POS)",
+    name: "USD Coin (Native)",
     currency: "USD",
     decimals: 6,
   },
@@ -32,6 +38,18 @@ const tokensDataset = {
     symbol: "EURe",
     name: "Monerium EUR emoney",
     currency: "EUR",
+    decimals: 18,
+  },
+  "0xc2132D05D31c914a87C6611C10748AEb04B58e8F": {
+    symbol: "USDT",
+    name: "Tether USD (PoS)",
+    currency: "USD",
+    decimals: 6,
+  },
+  "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063": {
+    symbol: "DAI",
+    name: "Dai Stablecoin",
+    currency: "USD",
     decimals: 18,
   },
 };
