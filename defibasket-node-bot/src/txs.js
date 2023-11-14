@@ -221,7 +221,7 @@ async function processEvent(log) {
     event = contract.interface.parseLog(log);
     // if event is a transfer, end the function execution.
     if (event.name === "Transfer") {
-      return;
+      return false;
     }
   } else {
     contract = new ethers.Contract(log.address, ERC20_ABI, provider);
@@ -232,7 +232,7 @@ async function processEvent(log) {
     console.warn(
       `Unable to parse log with transaction hash: ${log.transactionHash}`
     );
-    return;
+    return false;
   }
 
   let relevantData = {};
@@ -257,7 +257,7 @@ async function processEvent(log) {
           `Token address not found in dataset: ${decodedInput.args.inputs.tokens[0]}`
         );
       }
-      break;
+      return true;
 
     case "DEFIBASKET_DEPOSIT":
       relevantData.from = tx.from;
@@ -274,12 +274,12 @@ async function processEvent(log) {
         );
       }
 
-      break;
+      return true;
 
     case "DEFIBASKET_EDIT":
       relevantData.from = tx.from;
       relevantData.nftId = Number(decodedInput.args.nftId);
-      break;
+      return true;
 
     case "DEFIBASKET_WITHDRAW":
       relevantData.from = tx.from;
@@ -297,7 +297,7 @@ async function processEvent(log) {
       relevantData.outputPercentage = Number(
         decodedInput.args.outputs.amounts[0]
       );
-      break;
+      return true;
     case "Transfer":
       if (monitoredWallets.includes(event.args.to)) {
         relevantData.from = event.args.from;
@@ -311,11 +311,11 @@ async function processEvent(log) {
           console.warn(`Token address not found in dataset: ${log.address}`);
         }
       }
-      break;
+      return true;
 
     default:
       console.log(`Event ${event.name} not processed.`);
-      return;
+      return false;
   }
 
   console.log(`Event: ${event.name}`);
@@ -334,7 +334,7 @@ async function processEvent(log) {
 async function runBot() {
   try {
     const startingBlocknumber = getLastProcessedBlockNumber();
-    const endingBlocknumber = await provider.getBlockNumber();
+    const endingBlocknumber = (await provider.getBlockNumber()) - 5;
     // const endingBlocknumber = startingBlocknumber + 100;
     setLastProcessedBlockNumber(endingBlocknumber);
 
@@ -365,8 +365,10 @@ async function runBot() {
     // First, process the defiBasketLogs
     for (const log of defiBasketLogs) {
       if (!processedTxHashes.has(log.transactionHash)) {
-        await processEvent(log);
-        processedTxHashes.add(log.transactionHash);
+        const eventProcessed = await processEvent(log);
+        if (eventProcessed) {
+          processedTxHashes.add(log.transactionHash);
+        }
       }
     }
 
@@ -374,8 +376,10 @@ async function runBot() {
     // that have already been processed
     for (const log of transferLogs) {
       if (!processedTxHashes.has(log.transactionHash)) {
-        await processEvent(log);
-        processedTxHashes.add(log.transactionHash);
+        const eventProcessed = await processEvent(log);
+        if (eventProcessed) {
+          processedTxHashes.add(log.transactionHash);
+        }
       }
     }
   } catch (error) {
