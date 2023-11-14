@@ -257,7 +257,7 @@ async function processEvent(log) {
           `Token address not found in dataset: ${decodedInput.args.inputs.tokens[0]}`
         );
       }
-      return true;
+      break;
 
     case "DEFIBASKET_DEPOSIT":
       relevantData.from = tx.from;
@@ -274,12 +274,12 @@ async function processEvent(log) {
         );
       }
 
-      return true;
+      break;
 
     case "DEFIBASKET_EDIT":
       relevantData.from = tx.from;
       relevantData.nftId = Number(decodedInput.args.nftId);
-      return true;
+      break;
 
     case "DEFIBASKET_WITHDRAW":
       relevantData.from = tx.from;
@@ -297,7 +297,7 @@ async function processEvent(log) {
       relevantData.outputPercentage = Number(
         decodedInput.args.outputs.amounts[0]
       );
-      return true;
+      break;
     case "Transfer":
       if (monitoredWallets.includes(event.args.to)) {
         relevantData.from = event.args.from;
@@ -311,11 +311,11 @@ async function processEvent(log) {
           console.warn(`Token address not found in dataset: ${log.address}`);
         }
       }
-      return true;
+      break;
 
     default:
       console.log(`Event ${event.name} not processed.`);
-      return false;
+      return;
   }
 
   console.log(`Event: ${event.name}`);
@@ -329,6 +329,7 @@ async function processEvent(log) {
   //   }>)\`\`\``
   // );
   sendMessageToDiscordChannel(event, log, relevantData);
+  return true;
 }
 
 async function runBot() {
@@ -354,7 +355,7 @@ async function runBot() {
       toBlock: endingBlocknumber,
     });
 
-    const processedTxHashes = new Set();
+    // const processedTxHashes = new Set();
     if (defiBasketLogs.length === 0 && transferLogs.length === 0) {
       console.log("No logs found");
     } else {
@@ -364,23 +365,23 @@ async function runBot() {
 
     // First, process the defiBasketLogs
     for (const log of defiBasketLogs) {
-      if (!processedTxHashes.has(log.transactionHash)) {
-        const eventProcessed = await processEvent(log);
-        if (eventProcessed) {
-          processedTxHashes.add(log.transactionHash);
-        }
-      }
+      // if (!processedTxHashes.has(log.transactionHash)) {
+      await processEvent(log);
+      // if (eventProcessed) {
+      //   processedTxHashes.add(log.transactionHash);
+      // }
+      // }
     }
 
     // Then, process the transferLogs, skipping those with transaction hashes
     // that have already been processed
     for (const log of transferLogs) {
-      if (!processedTxHashes.has(log.transactionHash)) {
-        const eventProcessed = await processEvent(log);
-        if (eventProcessed) {
-          processedTxHashes.add(log.transactionHash);
-        }
-      }
+      // if (!processedTxHashes.has(log.transactionHash)) {
+      await processEvent(log);
+      // if (eventProcessed) {
+      // processedTxHashes.add(log.transactionHash);
+      // }
+      // }
     }
   } catch (error) {
     console.error("Error in runBot:", error);
