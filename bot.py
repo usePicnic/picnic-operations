@@ -282,6 +282,10 @@ async def report_body(report_title, type="std"):
     smartAccounts = migrationData["metrics"]["smartAccounts"]
     smartAccountTvl = migrationData["metrics"]["smartAccountTotalTvl"]
     top20Addresses = migrationData["metrics"]["top20Addresses"]
+    formatted_top20_addresses = ""
+    for address in top20Addresses:
+        formatted_top20_addresses += f"> `Address`: {address['ownerAddress']}, `Value`: {address['totalOwnerInvestedValue']}\n"
+    
 
     # Get and format balance to two decimal places for readability
     balance = await get_balance()
@@ -293,7 +297,7 @@ async def report_body(report_title, type="std"):
     > {smartAccounts}
     > **smart accounts total tvl**
     > {locale.currency(smartAccountTvl, grouping=True)}
-    >
+    > 
     > **gas station balance**
     > {formatted_balance} MATIC
     > **accounts created** 
@@ -311,9 +315,9 @@ async def report_body(report_title, type="std"):
     > **baskets tests**
     > {len(total_pass)} successes, {len(total_fail)} fails
     {f'> failure list: {total_fail}' if len(total_fail) > 0 else ''}
-    >
-    >**Top 20 Addresses without migrating**
-    >{top20Addresses}
+    > 
+    > ** Top 20 Addresses without migrating**
+    {formatted_top20_addresses}
     """
     report_extended_str = ""
     if report_title == "Daily Morning Report" or type == "full":
