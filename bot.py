@@ -267,12 +267,33 @@ async def report_body(report_title, type="std"):
         portfolio_percentage = (portfolio["totalValue"] / total_tvl) * 100
         portfolio_values_str += f'> `name`: {portfolio.get("name", "N/A")}, `Total number`: {portfolio.get("totalNumber", 0)}, `Total value`: {locale.currency(portfolio.get("totalValue", 0), grouping=True)}, `Pct`: {portfolio_percentage:.2f}%\n'
 
+    # Make the API request for migration metrics
+    async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
+        async with session.get(
+            "https://dev.picnicinvestimentos.com/api/get-migration-metrics",
+            timeout=300,  # 5 minutes in seconds
+        ) as response:
+            if response.status != 200:
+                raise Exception(
+                    f"API responded with {response.status}: {await response.text()}"
+                )
+            migrationData = await response.json()
+
+    smartAccounts = migrationData["metrics"]["smartAccounts"]
+    smartAccountTvl = migrationData["metrics"]["smartAccountTotalTvl"]
+    top20Addresses = migrationData["metrics"]["top20Addresses"]
+
     # Get and format balance to two decimal places for readability
     balance = await get_balance()
     formatted_balance = "{:.2f}".format(balance)
     report_str = f"""
     > **:bar_chart: PICNIC BRASIL - {report_title} :bar_chart:**
     > 
+    > **smart accounts created**
+    > {smartAccounts}
+    > **smart accounts total tvl**
+    > {locale.currency(smartAccountTvl, grouping=True)}
+    >
     > **gas station balance**
     > {formatted_balance} MATIC
     > **accounts created** 
@@ -290,6 +311,9 @@ async def report_body(report_title, type="std"):
     > **baskets tests**
     > {len(total_pass)} successes, {len(total_fail)} fails
     {f'> failure list: {total_fail}' if len(total_fail) > 0 else ''}
+    >
+    >**Top 20 Addresses without migrating**
+    >{top20Addresses}
     """
     report_extended_str = ""
     if report_title == "Daily Morning Report" or type == "full":
