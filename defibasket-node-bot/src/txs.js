@@ -21,11 +21,12 @@ const ABI_FILE_PATH = "./lib/defi_basket_abi.json";
 const BLOCKNUMBER_FILE_PATH = "blocknumber.txt";
 
 const uri = MONGO_URL;
-const dbName = "defibasket-common";
-const collectionName = "users";
 
-async function fetchWalletAddresses() {
+
+async function fetchUserAddresses() {
   const client = new MongoClient(uri, { useUnifiedTopology: true });
+  const dbName = "defibasket-common";
+const collectionName = "users";
 
   try {
     await client.connect();
@@ -52,10 +53,46 @@ async function fetchWalletAddresses() {
   }
 }
 
-let monitoredWallets = [];
+async function fetchSmartWalletAddresses() {
+  const client = new MongoClient(uri, { useUnifiedTopology: true });
+  const dbName = "defibasket-common";
+  const collectionName = "smartAccounts";
+
+  try {
+    await client.connect();
+    const database = client.db(dbName);
+    const collection = database.collection(collectionName);
+
+    const addresses = await collection
+      .find()
+      .map((doc) => doc.address)
+      .toArray();
+
+    // Flatten the array of arrays to get a single array of addresses
+    const flattenedAddresses = [].concat(...addresses);
+
+    return flattenedAddresses;
+
+    // // Export addresses to a .txt file
+    // fs.writeFileSync("addresses.txt", flattenedAddresses.join("\n"), "utf-8");
+    // console.log("Wallet addresses exported successfully to addresses.txt!");
+  } catch (error) {
+    console.error("Error fetching wallet addresses:", error);
+  } finally {
+    await client.close();
+  }
+}
+
+// let monitoredWallets = [];
+// generate set for monitored wallets
+let monitoredWallets = new Set();
 
 async function initializeMonitoredWallets() {
-  monitoredWallets = await fetchWalletAddresses();
+  const userWallets = await fetchUserAddresses();
+  const smartWallets = await fetchSmartWalletAddresses();
+
+  userWallets.forEach((wallet) => monitoredWallets.add(wallet.toLowerCase()));
+  smartWallets.forEach((wallet) => monitoredWallets.add(wallet.toLowerCase()));
 }
 
 initializeMonitoredWallets();
@@ -299,7 +336,7 @@ async function processEvent(log) {
       );
       break;
     case "Transfer":
-      if (monitoredWallets.includes(event.args.to)) {
+      if (monitoredWallets.has(event.args.to.toLowerCase())) {
         relevantData.from = event.args.from;
         relevantData.to = event.args.to;
         tokenInfo = tokensDataset[log.address];
@@ -349,7 +386,7 @@ async function runBot() {
       topics: [
         ethers.id("Transfer(address,address,uint256)"), // ERC-20 Transfer event signature
         null, // Ignore the sender
-        monitoredWallets.map((wallet) => ethers.zeroPadValue(wallet, 32)), // List of monitored wallets padded to 32 bytes
+        [...monitoredWallets].map((wallet) => ethers.zeroPadValue(wallet, 32)), // List of monitored wallets padded to 32 bytes
       ],
       fromBlock: startingBlocknumber,
       toBlock: endingBlocknumber,
