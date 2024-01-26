@@ -233,7 +233,7 @@ async def report_body(report_title, type="std"):
     # Make the API request
     async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
         async with session.get(
-            "https://dev.usepicnic.com/api/get-easy-metrics",
+            "https://dev.picnicinvestimentos.com/api/get-easy-metrics",
             timeout=300,  # 5 minutes in seconds
         ) as response:
             if response.status != 200:
