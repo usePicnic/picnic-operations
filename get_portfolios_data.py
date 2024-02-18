@@ -55,6 +55,10 @@ async def get_portfolio_data():
             2046,  # Curve DAO Token (CRV)
             2047,  # Mask Network (MASK)
             2048,  # The Sandbox (SAND)
+            2433,  # Hazim Regen Basket
+            3012,  # EasyCryptoSOL
+            3013,  # EasyCryptoSNX
+            3014,  # EasyCryptoGNS
         ],
         "perPage": 999,
     }

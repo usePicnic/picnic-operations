@@ -206,6 +206,33 @@ def split_message(content, limit=2000):
     return messages
 
 
+def calculate_total_asset_sums(asset_sums):
+    """
+    Calculate the total asset sums.
+
+    Args:
+        asset_sums (dict): The asset sums.
+
+    Returns:
+        float: The total asset sums.
+    """
+    # calculate asset value mapping, like USDC = 1, USDT = 1, BRLA = 0.20
+    asset_values = {
+        "USDC": 1,
+        "USDCE": 1,
+        "USDT": 1,
+        "BRLA": 0.20,
+        "DAI": 1,
+        "EURe": 1.1,
+    }
+
+    total = 0
+    for asset, value in asset_sums.items():
+        if asset in asset_values:
+            total += asset_values[asset] * value
+    return total
+
+
 async def report_body(report_title, type="std"):
     """
     Generate the body of a report.
@@ -233,7 +260,7 @@ async def report_body(report_title, type="std"):
     # Make the API request
     async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
         async with session.get(
-            "https://dev.picnicinvestimentos.com/api/get-easy-metrics",
+            "https://dev.picnicinvestimentos.com/api/get-easy-metrics-2",
             timeout=300,  # 5 minutes in seconds
         ) as response:
             if response.status != 200:
@@ -243,16 +270,26 @@ async def report_body(report_title, type="std"):
             data = await response.json()
 
     # Retrieve the desired metrics
-    easy_users = data["metrics"]["easyUsers"]
-    easy_account_tvl = data["metrics"]["easyAccountTvl"]
-    easy_investments_tvl = data["metrics"]["easyInvestmentsTvl"]
-    addresses_with_balance_or_portfolio = data["metrics"][
-        "numberOfAddressesWithBalanceOrPortfolio"
-    ]
-    portfolios = data["metrics"]["portfoliosByNftId"]
+    data = data["data"]
+    num_of_users = data["numOfUsers"]
+    num_of_smart_accounts = data["numOfSmartAccounts"]
+    num_of_active_smart_accounts = data["numOfActiveSmartAccounts"]
+    num_of_dormant_smart_accounts = data["numOfDormantSmartAccounts"]
+    smart_accounts_tvl = data["smartAccountsTvl"]
+    smart_accounts_portfolios_tvl = data["totalPortfoliosValue"]
+    revenue_24h = calculate_total_asset_sums(
+        data["revenueData"]["last24Hours"]["assetSums"]
+    )
+    revenue_7d = calculate_total_asset_sums(
+        data["revenueData"]["last7Days"]["assetSums"]
+    )
+    # addresses_with_balance_or_portfolio = data["metrics"][
+    #     "numberOfAddressesWithBalanceOrPortfolio"
+    # ]
+    portfolios = data["portfoliosValues"]
 
     # Calculate total tvl
-    total_tvl = easy_account_tvl + easy_investments_tvl
+    smart_account_tokens_tvl = smart_accounts_tvl - smart_accounts_portfolios_tvl
 
     # Sort the portfolios by 'totalValue' in descending order
     sorted_portfolios = dict(
@@ -264,60 +301,62 @@ async def report_body(report_title, type="std"):
 
     for nft_id, portfolio in sorted_portfolios.items():
         # Calculate the portfolio's percentage of the total tvl
-        portfolio_percentage = (portfolio["totalValue"] / total_tvl) * 100
+        portfolio_percentage = (
+            portfolio["totalValue"] / smart_accounts_portfolios_tvl
+        ) * 100
         portfolio_values_str += f'> `name`: {portfolio.get("name", "N/A")}, `Total number`: {portfolio.get("totalNumber", 0)}, `Total value`: {locale.currency(portfolio.get("totalValue", 0), grouping=True)}, `Pct`: {portfolio_percentage:.2f}%\n'
 
     # Make the API request for migration metrics
-    async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
-        async with session.get(
-            "https://dev.picnicinvestimentos.com/api/get-migration-metrics",
-            timeout=300,  # 5 minutes in seconds
-        ) as response:
-            if response.status != 200:
-                raise Exception(
-                    f"API responded with {response.status}: {await response.text()}"
-                )
-            migrationData = await response.json()
+    # async with aiohttp_retry.RetryClient(retry_options=retry_strategy) as session:
+    #     async with session.get(
+    #         "https://dev.picnicinvestimentos.com/api/get-migration-metrics",
+    #         timeout=300,  # 5 minutes in seconds
+    #     ) as response:
+    #         if response.status != 200:
+    #             raise Exception(
+    #                 f"API responded with {response.status}: {await response.text()}"
+    #             )
+    #         migrationData = await response.json()
 
-    smartAccounts = migrationData["metrics"]["smartAccounts"]
-    smartAccountTvl = migrationData["metrics"]["smartAccountTotalTvl"]
-    top20Addresses = migrationData["metrics"]["top20Addresses"]
-    formatted_top20_addresses = ""
-    for address in top20Addresses:
-        formatted_top20_addresses += f"> `Address`: {address['ownerAddress']}, `Value`: {address['totalOwnerInvestedValue']}\n"
-    
+    # smartAccounts = migrationData["metrics"]["smartAccounts"]
+    # smartAccountTvl = migrationData["metrics"]["smartAccountTotalTvl"]
+    # top20Addresses = migrationData["metrics"]["top20Addresses"]
+    # formatted_top20_addresses = ""
+    # for address in top20Addresses:
+    #     formatted_top20_addresses += f"> `Address`: {address['ownerAddress']}, `Value`: {address['totalOwnerInvestedValue']}\n"
 
     # Get and format balance to two decimal places for readability
-    balance = await get_balance()
-    formatted_balance = "{:.2f}".format(balance)
+    # balance = await get_balance()
+    # formatted_balance = "{:.2f}".format(balance)
     report_str = f"""
     > **:bar_chart: PICNIC BRASIL - {report_title} :bar_chart:**
     > 
     > **smart accounts created**
-    > {smartAccounts}
-    > **smart accounts total tvl**
-    > {locale.currency(smartAccountTvl, grouping=True)}
+    > {num_of_smart_accounts}
+    > **active smart accounts**
+    > {num_of_active_smart_accounts}
+    > **dormant smart accounts**
+    > {num_of_dormant_smart_accounts}
+    > **users created** 
+    > {num_of_users}
     > 
-    > **gas station balance**
-    > {formatted_balance} MATIC
-    > **accounts created** 
-    > {easy_users}
-    > **users** 
-    > {addresses_with_balance_or_portfolio}
-    > **checking account tvl**
-    > {locale.currency(easy_account_tvl, grouping=True)}
-    > **investments tvl**
-    > {locale.currency(easy_investments_tvl, grouping=True)}
-    > **total tvl**
-    > {locale.currency(total_tvl, grouping=True)}
+    > **smart accounts total tvl**
+    > {locale.currency(smart_accounts_tvl, grouping=True)}
+    > **smart accounts portfolios tvl**
+    > {locale.currency(smart_accounts_portfolios_tvl, grouping=True)}
+    > **smart accounts tokens tvl**
+    > {locale.currency(smart_account_tokens_tvl, grouping=True)}
     > **avg ticket**
-    > {locale.currency(total_tvl / addresses_with_balance_or_portfolio, grouping=True)}
+    > {locale.currency(smart_accounts_tvl / num_of_active_smart_accounts, grouping=True)}
+    > 
+    > **revenue 24h**
+    > {locale.currency(revenue_24h, grouping=True)}
+    > **revenue 7 days**
+    > {locale.currency(revenue_7d, grouping=True)}
+    > 
     > **baskets tests**
     > {len(total_pass)} successes, {len(total_fail)} fails
     {f'> failure list: {total_fail}' if len(total_fail) > 0 else ''}
-    > 
-    > ** Top 20 Addresses without migrating**
-    {formatted_top20_addresses}
     """
     report_extended_str = ""
     if report_title == "Daily Morning Report" or type == "full":
