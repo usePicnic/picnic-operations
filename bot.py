@@ -277,6 +277,7 @@ async def report_body(report_title, type="std"):
     num_of_dormant_smart_accounts = data["numOfDormantSmartAccounts"]
     smart_accounts_tvl = data["smartAccountsTvl"]
     smart_accounts_portfolios_tvl = data["totalPortfoliosValue"]
+    num_of_portfolios = data["numOfPortfolios"]
     revenue_24h = calculate_total_asset_sums(
         data["revenueData"]["last24Hours"]["assetSums"]
     )
@@ -337,6 +338,14 @@ async def report_body(report_title, type="std"):
     > {num_of_active_smart_accounts}
     > **dormant smart accounts**
     > {num_of_dormant_smart_accounts}
+    > 
+    > **ext wallet smart accounts**
+    > {data["extWalletMetrics"]["numOfExternalWalletSmartAccounts"]}
+    > **ext wallet sa with value**
+    > {data["extWalletMetrics"]["numOfExternalWalletSmartAccountsWithValue"]}
+    > **ext wallet sum of values**
+    > {data["extWalletMetrics"]["sumOfValues"]}
+    > 
     > **users created** 
     > {num_of_users}
     > 
@@ -346,7 +355,11 @@ async def report_body(report_title, type="std"):
     > {locale.currency(smart_accounts_portfolios_tvl, grouping=True)}
     > **smart accounts tokens tvl**
     > {locale.currency(smart_account_tokens_tvl, grouping=True)}
-    > **avg ticket**
+    > **number of portfolios** 
+    > {num_of_portfolios}
+    > **avg value per portfolio**
+    > {locale.currency(smart_accounts_portfolios_tvl / num_of_portfolios, grouping=True)}
+    > **avg value per account**
     > {locale.currency(smart_accounts_tvl / num_of_active_smart_accounts, grouping=True)}
     > 
     > **revenue 24h**
