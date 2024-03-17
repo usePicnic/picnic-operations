@@ -268,6 +268,9 @@ async def report_body(report_title, type="std"):
                     f"API responded with {response.status}: {await response.text()}"
                 )
             data = await response.json()
+            # check if data contains the expected keys
+            if "data" not in data:
+                raise Exception(f"API responded with unexpected data: {data}")
 
     # Retrieve the desired metrics
     data = data["data"]
@@ -302,6 +305,7 @@ async def report_body(report_title, type="std"):
 
     for nft_id, portfolio in sorted_portfolios.items():
         # Calculate the portfolio's percentage of the total tvl
+        # print("pct calc", portfolio["totalValue"], smart_accounts_portfolios_tvl)
         portfolio_percentage = (
             portfolio["totalValue"] / smart_accounts_portfolios_tvl
         ) * 100
